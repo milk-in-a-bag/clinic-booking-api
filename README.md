@@ -70,6 +70,8 @@ Decision: use a **database-level partial unique constraint** on
   than per-doctor or per-patient timezones, since the brief describes one physical
   clinic.
 
+  Overlap prevention relies on all appointments being created on fixed 30-minute boundaries via the API's slot validation. The DB constraint checks exact (doctor, start_time) matches rather than time-range overlap; this is sufficient given the fixed-grid design but wouldn't catch misaligned appointments created outside the normal booking flow (e.g. direct admin edits).
+
 ## How to Run Locally
 
 ```powershell
