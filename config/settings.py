@@ -23,12 +23,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-uqd!8fiwef6i_1s5t1ju+m9p#7j5fjt4(dgm$xp+&5fxah7$)!'
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-uqd!8fiwef6i_1s5t1ju+m9p#7j5fjt4(dgm$xp+&5fxah7$)!')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = [h.strip() for h in config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')]
 
 
 # Application definition
@@ -80,7 +80,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     'default': dj_database_url.config(
-        default=config('DATABASE_URL', default=None),
+        default=config('DATABASE_URL'),
         conn_max_age=600,
     )
 }
