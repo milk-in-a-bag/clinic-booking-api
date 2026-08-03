@@ -1,7 +1,6 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 
-# Create your models here.
 
 class Doctor(models.Model):
     name = models.CharField(max_length=255)
@@ -36,8 +35,8 @@ class WorkingHours(models.Model):
         ]
 
     def clean(self):
-        if self.start_time >= self.end_time:
-            raise ValidationError("start_time must be before end_time.")
+        if self.start_time and self.end_time and self.start_time >= self.end_time:
+            raise ValidationError({"start_time": "start_time must be before end_time."})
 
     def __str__(self):
         return f"{self.doctor.name} - {self.get_weekday_display()} {self.start_time}-{self.end_time}"
@@ -73,6 +72,14 @@ class Appointment(models.Model):
             )
         ]
         ordering = ["start_time"]
+
+    def clean(self):
+        if self.start_time and self.end_time and self.start_time >= self.end_time:
+            raise ValidationError({"start_time": "start_time must be before end_time."})
+        if self.status == self.Status.CANCELLED and not self.cancellation_reason:
+            raise ValidationError(
+                {"cancellation_reason": "A reason is required when cancelling an appointment."}
+            )
 
     def __str__(self):
         return f"{self.patient.name} with {self.doctor.name} at {self.start_time}"
