@@ -75,6 +75,29 @@ All routes are prefixed with `/api/`.
 
 Live base URL: `https://clinic-booking-api-7hxm.onrender.com/api/`
 
+### Demo IDs (seeded on the live deployment)
+
+- Doctors: `1` to `5` (Dr. Wanjiru, Dr. Otieno, Dr. Kimani, Dr. Achieng, Dr. Mwangi), all Mon-Fri 9:00-17:00 Nairobi time.
+- Patients: `1` (Jane Doe), `2` (John Smith).
+
+Example request against the live deployment:
+
+```
+GET https://clinic-booking-api-7hxm.onrender.com/api/doctors/1/availability/?date=2026-08-10
+```
+
+## Demo Data
+
+Sample doctors, working hours, and patients are already seeded on the live
+deployment (see Demo IDs above). To (re)seed a local database:
+
+```powershell
+python manage.py seed_demo_data
+```
+
+This command is idempotent (`get_or_create` throughout), so it's safe to run
+more than once.
+
 ### Trade-offs considered
 
 - **Single Django app vs. split apps** (`doctors`, `patients`, `appointments`):
