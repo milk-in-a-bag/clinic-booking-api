@@ -8,6 +8,11 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 SLOT_MINUTES = 30
 
+class SlotConflictError(Exception):
+    """Raised when a slot conflicts with the DB's partial unique constraint,
+    whether caught via full_clean()'s validate_unique() or a raw IntegrityError."""
+    pass
+
 
 def generate_slots_for_doctor(doctor, date):
     weekday = date.weekday()

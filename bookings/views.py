@@ -4,8 +4,8 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 
 from .models import Doctor, Appointment
-from .validators import get_available_slots
-from .serializers import AvailableSlotSerializer, AvailabilityQuerySerializer, AppointmentCreateSerializer, AppointmentCancelSerializer
+from .validators import get_available_slots, SlotConflictError
+from .serializers import AvailableSlotSerializer, AvailabilityQuerySerializer, AppointmentCreateSerializer, AppointmentCancelSerializer, AppointmentRescheduleSerializer
 
 from django.db import IntegrityError
 
@@ -56,6 +56,33 @@ class AppointmentCancelView(APIView):
                 "id": appointment.id,
                 "status": appointment.status,
                 "cancellation_reason": appointment.cancellation_reason,
+            },
+            status=status.HTTP_200_OK,
+        )
+    
+class AppointmentRescheduleView(APIView):
+    def patch(self, request, appointment_id):
+        appointment = get_object_or_404(Appointment, id=appointment_id)
+
+        serializer = AppointmentRescheduleSerializer(appointment, data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            serializer.save()
+        except SlotConflictError:
+            return Response(
+                {"start_time": "This slot was just booked by someone else. Please choose another."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        return Response(
+            {
+                "id": appointment.id,
+                "doctor": appointment.doctor_id,
+                "patient": appointment.patient_id,
+                "start_time": appointment.start_time,
+                "end_time": appointment.end_time,
+                "status": appointment.status,
             },
             status=status.HTTP_200_OK,
         )

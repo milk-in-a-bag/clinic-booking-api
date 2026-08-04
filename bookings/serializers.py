@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.db import IntegrityError, transaction
 from .models import Appointment
-from .validators import validate_slot_is_bookable
+from .validators import validate_slot_is_bookable, SlotConflictError
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.core.exceptions import ValidationError as DjangoValidationError
 
@@ -59,12 +59,43 @@ class AppointmentCancelSerializer(serializers.ModelSerializer):
         instance.status = Appointment.Status.CANCELLED
         instance.cancellation_reason = validated_data["cancellation_reason"]
         try:
-            # Defensive backstop: not currently reachable as a failure via this
-            # endpoint (the check above and the required reason field already
-            # cover clean()'s two rules), but guards against future changes to
-            # Appointment.clean() introducing a rule this serializer doesn't know about.
             instance.full_clean()
         except DjangoValidationError as e:
             raise DRFValidationError(getattr(e, "message_dict", {"non_field_errors": e.messages}))
         instance.save()
+        return instance
+
+class AppointmentRescheduleSerializer(serializers.ModelSerializer):
+    start_time = serializers.DateTimeField(required=True)
+
+    class Meta:
+        model = Appointment
+        fields = ["start_time"]
+
+    def validate(self, data):
+        if self.instance.status == Appointment.Status.CANCELLED:
+            raise DRFValidationError({"status": "Cannot reschedule a cancelled appointment."})
+
+        doctor = self.instance.doctor
+        new_start_time = data["start_time"]
+        end_time = validate_slot_is_bookable(doctor, new_start_time)
+        data["end_time"] = end_time
+        return data
+
+    def update(self, instance, validated_data):
+        instance.start_time = validated_data["start_time"]
+        instance.end_time = validated_data["end_time"]
+
+        try:
+            instance.full_clean()
+        except DjangoValidationError as e:
+            if "unique_booked_doctor_slot" in str(e):
+                raise SlotConflictError()
+            raise DRFValidationError(getattr(e, "message_dict", {"non_field_errors": e.messages}))
+
+        try:
+            instance.save()
+        except IntegrityError:
+            raise SlotConflictError()
+
         return instance
