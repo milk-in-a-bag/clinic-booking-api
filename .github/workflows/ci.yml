@@ -26,7 +26,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/clinic_booking_test
       SECRET_KEY: ci-test-secret-key
-      DEBUG: "True"
+      DEBUG: "False"
       ALLOWED_HOSTS: localhost,127.0.0.1
 
     steps:
@@ -36,7 +36,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.14"
+          python-version: "3.14.3"
 
       - name: Install dependencies
         run: |
