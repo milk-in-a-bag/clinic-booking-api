@@ -18,6 +18,7 @@ class AppointmentCancelTests(TestCase):
         raw_start = timezone.now() + timedelta(days=1)
         # Round down to the nearest 30-minute boundary so this lines up with
         # what generate_slots_for_doctor would actually produce.
+        raw_start = timezone.localtime(timezone.now() + timedelta(days=1))
         minute = 0 if raw_start.minute < 30 else 30
         start_time = raw_start.replace(minute=minute, second=0, microsecond=0)
 

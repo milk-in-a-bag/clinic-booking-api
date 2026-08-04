@@ -7,11 +7,45 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 # checks, consistent with the fixed 30-minute grid design — see README trade-offs.
 
 SLOT_MINUTES = 30
+MIN_BOOKING_BUFFER_MINUTES = 60
 
 class SlotConflictError(Exception):
     """Raised when a slot conflicts with the DB's partial unique constraint,
     whether caught via full_clean()'s validate_unique() or a raw IntegrityError."""
     pass
+
+
+def validate_slot_is_bookable(doctor, start_time):
+    """
+    Validates that start_time is a real, bookable slot for this doctor:
+    - not in the past
+    - at least MIN_BOOKING_BUFFER_MINUTES from now (bonus requirement)
+    - falls exactly on one of the doctor's generated 30-minute slot boundaries
+
+    Raises DRFValidationError with a field-specific message if invalid.
+    Returns the computed end_time on success.
+    """
+    now = timezone.now()
+
+    if start_time < now:
+        raise DRFValidationError({"start_time": "Cannot book an appointment in the past."})
+
+    if start_time < now + timedelta(minutes=MIN_BOOKING_BUFFER_MINUTES):
+        raise DRFValidationError({
+            "start_time": f"Appointments must be booked at least {MIN_BOOKING_BUFFER_MINUTES} minutes in advance."
+        })
+
+    date = timezone.localtime(start_time).date() 
+    valid_slots = generate_slots_for_doctor(doctor, date)
+    valid_starts = {slot_start: slot_end for slot_start, slot_end in valid_slots}
+
+    if start_time not in valid_starts:
+        raise DRFValidationError({
+            "start_time": "This time is not a valid slot for this doctor "
+                           "(outside working hours or not aligned to a 30-minute boundary)."
+        })
+
+    return valid_starts[start_time]
 
 
 def generate_slots_for_doctor(doctor, date):
@@ -49,22 +83,3 @@ def get_available_slots(doctor, date):
     )
 
     return [(start, end) for start, end in all_slots if start not in booked_starts]
-
-
-def validate_slot_is_bookable(doctor, start_time):
-    now = timezone.now()
-
-    if start_time < now:
-        raise DRFValidationError({"start_time": "Cannot book an appointment in the past."})
-
-    date = start_time.date()
-    valid_slots = generate_slots_for_doctor(doctor, date)
-    valid_starts = {slot_start: slot_end for slot_start, slot_end in valid_slots}
-
-    if start_time not in valid_starts:
-        raise DRFValidationError({
-            "start_time": "This time is not a valid slot for this doctor "
-                           "(outside working hours or not aligned to a 30-minute boundary)."
-        })
-
-    return valid_starts[start_time]
