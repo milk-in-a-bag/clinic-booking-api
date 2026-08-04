@@ -69,6 +69,7 @@ class Appointment(models.Model):
                 fields=["doctor", "start_time"],
                 condition=models.Q(status="booked"),
                 name="unique_booked_doctor_slot",
+                violation_error_code="unique_booked_doctor_slot",
             )
         ]
         ordering = ["start_time"]

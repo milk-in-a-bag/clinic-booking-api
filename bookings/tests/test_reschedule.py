@@ -50,6 +50,22 @@ class AppointmentRescheduleTests(TestCase):
         self.assertEqual(self.appointment.start_time, new_start)
         self.assertEqual(self.appointment.status, Appointment.Status.BOOKED)
 
+        # Assert the response payload itself, not just DB state, to lock in
+        # the API contract independent of internal serializer changes.
+        self.assertEqual(response.data["id"], self.appointment.id)
+        self.assertEqual(response.data["status"], self.appointment.status)
+
+    def test_reschedule_to_same_slot_is_ok(self):
+        # Django's validate_unique() excludes the instance's own PK when
+        # checking the constraint, so rescheduling to the current slot
+        # should never trigger a false 409 against itself.
+        response = self.client.patch(self.url, {"start_time": self.original_start.isoformat()})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.appointment.refresh_from_db()
+        self.assertEqual(self.appointment.start_time, self.original_start)
+        self.assertEqual(self.appointment.status, Appointment.Status.BOOKED)
+
     def test_original_slot_becomes_available_after_reschedule(self):
         new_start = self._future_monday_at(11, 0)
         self.client.patch(self.url, {"start_time": new_start.isoformat()})
@@ -79,6 +95,10 @@ class AppointmentRescheduleTests(TestCase):
         response = self.client.patch(self.url, {"start_time": taken_start.isoformat()})
 
         self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(
+            response.data,
+            {"start_time": "This slot was just booked by someone else. Please choose another."},
+        )
         self.appointment.refresh_from_db()
         self.assertEqual(self.appointment.start_time, self.original_start)  # unchanged
 
