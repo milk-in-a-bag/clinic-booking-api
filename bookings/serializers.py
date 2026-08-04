@@ -144,3 +144,8 @@ class AppointmentRescheduleSerializer(serializers.ModelSerializer):
             raise SlotConflictError()
 
         return instance
+
+class PatientAppointmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Appointment
+        fields = ["id", "doctor", "start_time", "end_time", "status"]

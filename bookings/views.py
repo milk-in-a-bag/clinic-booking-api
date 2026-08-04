@@ -2,8 +2,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
-from .models import Doctor, Appointment
+from .models import Doctor, Appointment, Patient
 from .validators import get_available_slots, SlotConflictError
 from .serializers import (
     AvailableSlotSerializer,
@@ -12,6 +13,7 @@ from .serializers import (
     AppointmentCancelSerializer,
     AppointmentRescheduleSerializer,
     AppointmentResponseSerializer,
+    PatientAppointmentSerializer,
 )
 
 from django.db import IntegrityError
@@ -83,3 +85,16 @@ class AppointmentRescheduleView(APIView):
             )
 
         return Response(AppointmentResponseSerializer(appointment).data, status=status.HTTP_200_OK)
+
+class PatientAppointmentsView(APIView):
+    def get(self, request, patient_id):
+        patient = get_object_or_404(Patient, id=patient_id)
+
+        upcoming = Appointment.objects.filter(
+            patient=patient,
+            status=Appointment.Status.BOOKED,
+            start_time__gte=timezone.now(),
+        ).order_by("start_time")
+
+        serializer = PatientAppointmentSerializer(upcoming, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
