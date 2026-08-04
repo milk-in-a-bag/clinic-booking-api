@@ -35,4 +35,27 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         with transaction.atomic():
             return Appointment.objects.create(**validated_data)
-        
+
+class AppointmentCancelSerializer(serializers.Serializer):
+    cancellation_reason = serializers.CharField(
+        required=True,
+        allow_blank=False,
+        error_messages={
+            "required": "A cancellation reason is required.",
+            "blank": "Cancellation reason cannot be blank.",
+        },
+    )
+
+    def validate(self, data):
+        appointment = self.context["appointment"]
+        if appointment.status == Appointment.Status.CANCELLED:
+            raise DRFValidationError({"status": "This appointment is already cancelled."})
+        return data
+
+    def save(self):
+        appointment = self.context["appointment"]
+        appointment.status = Appointment.Status.CANCELLED
+        appointment.cancellation_reason = self.validated_data["cancellation_reason"]
+        appointment.full_clean()  # runs Appointment.clean() — belt-and-suspenders check
+        appointment.save()
+        return appointment
