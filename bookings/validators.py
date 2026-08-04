@@ -2,11 +2,16 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 from .models import Appointment, WorkingHours
 
+# Availability is computed via exact start_time match rather than range-overlap
+# checks, consistent with the fixed 30-minute grid design — see README trade-offs.
+
 SLOT_MINUTES = 30
 
 
 def generate_slots_for_doctor(doctor, date):
     weekday = date.weekday()
+    # .first() is safe here: (doctor, weekday) is enforced unique at the DB level
+    # via WorkingHours.Meta.constraints, so at most one row can ever match.
     hours = WorkingHours.objects.filter(doctor=doctor, weekday=weekday).first()
 
     if not hours:
