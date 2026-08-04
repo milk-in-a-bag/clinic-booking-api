@@ -29,14 +29,16 @@ class DoctorAvailabilityView(APIView):
 class AppointmentCreateView(APIView):
     def post(self, request):
         serializer = AppointmentCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)  # 400 on validation failure
+        serializer.is_valid(raise_exception=True)
 
         try:
             appointment = serializer.save()
-        except IntegrityError:
-            return Response(
-                {"start_time": "This slot was just booked by someone else. Please choose another."},
-                status=status.HTTP_409_CONFLICT,
-            )
+        except IntegrityError as e:
+            if "unique_booked_doctor_slot" in str(e):
+                return Response(
+                    {"start_time": "This slot was just booked by someone else. Please choose another."},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            raise 
 
         return Response(AppointmentCreateSerializer(appointment).data, status=status.HTTP_201_CREATED)

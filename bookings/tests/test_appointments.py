@@ -45,6 +45,9 @@ class AppointmentCreateTests(TestCase):
         self.assertEqual(Appointment.objects.count(), 1)
         self.assertEqual(response.data["status"], "booked")
 
+        expected_end_time = start_time + timedelta(minutes=30)
+        self.assertEqual(response.data["end_time"], expected_end_time.isoformat())
+
     def test_booking_in_the_past_returns_400(self):
         past_time = timezone.now() - timedelta(days=1)
         response = self.client.post(self.url, {
@@ -67,6 +70,19 @@ class AppointmentCreateTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("start_time", response.data)
 
+    def test_booking_exactly_at_working_hours_end_returns_400(self):
+        # Working hours end at 17:00. A slot starting at 17:00 would end at
+        # 17:30, past closing, so generate_slots_for_doctor never produces it.
+        start_time = self._future_monday_at(17, 0)
+        response = self.client.post(self.url, {
+            "doctor": self.doctor.id,
+            "patient": self.patient.id,
+            "start_time": start_time.isoformat(),
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("start_time", response.data)
+
     def test_booking_misaligned_to_slot_boundary_returns_400(self):
         start_time = self._future_monday_at(9, 15)  # not on a 30-min boundary
         response = self.client.post(self.url, {
@@ -76,6 +92,10 @@ class AppointmentCreateTests(TestCase):
         })
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("start_time", response.data)
+        self.assertTrue(
+            any("valid slot" in str(err).lower() for err in response.data["start_time"])
+        )
 
     def test_booking_on_non_working_day_returns_400(self):
         today = timezone.localdate()
@@ -112,7 +132,7 @@ class AppointmentCreateTests(TestCase):
 
     def test_rebooking_a_cancelled_slot_succeeds(self):
         start_time = self._future_monday_at(11, 0)
-        appointment = Appointment.objects.create(
+        Appointment.objects.create(
             doctor=self.doctor,
             patient=self.patient,
             start_time=start_time,
