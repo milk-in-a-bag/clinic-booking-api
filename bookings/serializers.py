@@ -3,7 +3,7 @@ from django.db import IntegrityError, transaction
 from .models import Appointment
 from .validators import validate_slot_is_bookable
 from rest_framework.exceptions import ValidationError as DRFValidationError
-
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 class AvailableSlotSerializer(serializers.Serializer):
     start_time = serializers.DateTimeField()
@@ -35,4 +35,36 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         with transaction.atomic():
             return Appointment.objects.create(**validated_data)
-        
+
+class AppointmentCancelSerializer(serializers.ModelSerializer):
+    cancellation_reason = serializers.CharField(
+        required=True,
+        allow_blank=False,
+        error_messages={
+            "required": "A cancellation reason is required.",
+            "blank": "Cancellation reason cannot be blank.",
+        },
+    )
+
+    class Meta:
+        model = Appointment
+        fields = ["cancellation_reason"]
+
+    def validate(self, data):
+        if self.instance.status == Appointment.Status.CANCELLED:
+            raise DRFValidationError({"status": "This appointment is already cancelled."})
+        return data
+
+    def update(self, instance, validated_data):
+        instance.status = Appointment.Status.CANCELLED
+        instance.cancellation_reason = validated_data["cancellation_reason"]
+        try:
+            # Defensive backstop: not currently reachable as a failure via this
+            # endpoint (the check above and the required reason field already
+            # cover clean()'s two rules), but guards against future changes to
+            # Appointment.clean() introducing a rule this serializer doesn't know about.
+            instance.full_clean()
+        except DjangoValidationError as e:
+            raise DRFValidationError(getattr(e, "message_dict", {"non_field_errors": e.messages}))
+        instance.save()
+        return instance

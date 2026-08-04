@@ -3,9 +3,9 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 
-from .models import Doctor
+from .models import Doctor, Appointment
 from .validators import get_available_slots
-from .serializers import AvailableSlotSerializer, AvailabilityQuerySerializer, AppointmentCreateSerializer
+from .serializers import AvailableSlotSerializer, AvailabilityQuerySerializer, AppointmentCreateSerializer, AppointmentCancelSerializer
 
 from django.db import IntegrityError
 
@@ -42,3 +42,20 @@ class AppointmentCreateView(APIView):
             raise 
 
         return Response(AppointmentCreateSerializer(appointment).data, status=status.HTTP_201_CREATED)
+
+class AppointmentCancelView(APIView):
+    def patch(self, request, appointment_id):
+        appointment = get_object_or_404(Appointment, id=appointment_id)
+
+        serializer = AppointmentCancelSerializer(appointment, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            {
+                "id": appointment.id,
+                "status": appointment.status,
+                "cancellation_reason": appointment.cancellation_reason,
+            },
+            status=status.HTTP_200_OK,
+        )
