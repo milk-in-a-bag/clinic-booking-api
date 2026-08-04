@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from django.utils import timezone
 from .models import Appointment, WorkingHours
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 # Availability is computed via exact start_time match rather than range-overlap
 # checks, consistent with the fixed 30-minute grid design — see README trade-offs.
@@ -43,3 +44,22 @@ def get_available_slots(doctor, date):
     )
 
     return [(start, end) for start, end in all_slots if start not in booked_starts]
+
+
+def validate_slot_is_bookable(doctor, start_time):
+    now = timezone.now()
+
+    if start_time < now:
+        raise DRFValidationError({"start_time": "Cannot book an appointment in the past."})
+
+    date = start_time.date()
+    valid_slots = generate_slots_for_doctor(doctor, date)
+    valid_starts = {slot_start: slot_end for slot_start, slot_end in valid_slots}
+
+    if start_time not in valid_starts:
+        raise DRFValidationError({
+            "start_time": "This time is not a valid slot for this doctor "
+                           "(outside working hours or not aligned to a 30-minute boundary)."
+        })
+
+    return valid_starts[start_time]
