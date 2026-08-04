@@ -47,10 +47,7 @@ class AppointmentCancelView(APIView):
     def patch(self, request, appointment_id):
         appointment = get_object_or_404(Appointment, id=appointment_id)
 
-        serializer = AppointmentCancelSerializer(
-            data=request.data,
-            context={"appointment": appointment},
-        )
+        serializer = AppointmentCancelSerializer(appointment, data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
