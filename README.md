@@ -69,6 +69,11 @@ Decision: use a **database-level partial unique constraint** on
 - **Timezone handling**: assumed a single clinic timezone (Africa/Nairobi) rather
   than per-doctor or per-patient timezones, since the brief describes one physical
   clinic.
+- **Overlap prevention**: relies on all appointments being created on fixed
+  30-minute boundaries via the API's slot validation. The DB constraint checks
+  exact `(doctor, start_time)` matches rather than time-range overlap; this is
+  sufficient given the fixed-grid design but wouldn't catch misaligned appointments
+  created outside the normal booking flow (e.g. direct admin edits).
 
 ## How to Run Locally
 
@@ -78,18 +83,24 @@ cd clinic-booking-api
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-# create .env with DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT
+# create a .env file with:
+#   DATABASE_URL=postgresql://<user>:<password>@<host>:<port>/<dbname>
+#   SECRET_KEY=<any-random-string-for-local-dev>
+#   DEBUG=True
+#   ALLOWED_HOSTS=localhost,127.0.0.1
 python manage.py migrate
 python manage.py runserver
 ```
 
 ## CI/CD
 
-- **Deployed at:** https://clinic-booking-api-7hxm.onrender.com
-- **Deploy trigger:** Render auto-deploys on every push to `main` (Blueprint-managed via `render.yaml`).
-- **CI pipeline:** GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request into `main`.
-  It spins up a disposable Postgres 16 service container, runs migrations, and runs the Django test
-  suite. `main` is protected — PRs must pass the `test` check before merging.
+- **Deployed at (production):** https://clinic-booking-api-7hxm.onrender.com
+- **Deploy trigger:** Render auto-deploys on every push to `main` (Blueprint-managed
+  via `render.yaml`).
+- **CI pipeline:** GitHub Actions (`.github/workflows/ci.yml`) runs the `test` job on
+  every pull request into `main`. It spins up a disposable Postgres 16 service
+  container, runs migrations, and runs the Django test suite. `main` is protected —
+  PRs must pass the `test` check before merging.
 
 ## AI Reflection
 
