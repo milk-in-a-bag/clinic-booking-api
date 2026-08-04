@@ -85,7 +85,11 @@ python manage.py runserver
 
 ## CI/CD
 
-_(to be filled in once the pipeline is built)_
+- **Deployed at:** https://clinic-booking-api-7hxm.onrender.com
+- **Deploy trigger:** Render auto-deploys on every push to `main` (Blueprint-managed via `render.yaml`).
+- **CI pipeline:** GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request into `main`.
+  It spins up a disposable Postgres 16 service container, runs migrations, and runs the Django test
+  suite. `main` is protected — PRs must pass the `test` check before merging.
 
 ## AI Reflection
 
