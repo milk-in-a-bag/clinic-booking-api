@@ -4,6 +4,7 @@ from .models import Appointment
 from .validators import validate_slot_is_bookable, SlotConflictError
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils import timezone
 
 
 def _is_slot_conflict(django_validation_error):
@@ -33,6 +34,11 @@ class AvailabilityQuerySerializer(serializers.Serializer):
             "required": "Query parameter 'date' is required (format: YYYY-MM-DD).",
         }
     )
+
+    def validate_date(self, value):
+        if value < timezone.localdate():
+            raise serializers.ValidationError("Cannot check availability for a past date.")
+        return value
 
 
 class AppointmentResponseSerializer(serializers.ModelSerializer):
